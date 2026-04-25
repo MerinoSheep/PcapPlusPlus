@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 project(example-app)
 
-# Set C++11
-set(CMAKE_CXX_STANDARD 11)
+# Set C++14 to match the version required by Pcap++
+set(CMAKE_CXX_STANDARD 14)
 # popen()/pclose() are not C++ standards
 set(CMAKE_CXX_EXTENSIONS ON)
 
