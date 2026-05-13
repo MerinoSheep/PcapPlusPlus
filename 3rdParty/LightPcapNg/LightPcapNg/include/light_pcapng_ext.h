@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 #include "light_types.h"
+#include "light_compression.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -80,6 +81,11 @@ light_pcapng_t *light_pcapng_open_read(const char* file_path, light_boolean read
 
 //Set compression level to 0 to disable compression!
 light_pcapng_t *light_pcapng_open_write(const char* file_path, light_pcapng_file_info *file_info, int compression_level);
+
+//Like light_pcapng_open_write but takes a struct of compression options so the
+//caller can configure backend-specific knobs (e.g. zstd's nbWorkers for
+//multi-threaded compression). Pass NULL for the same effect as compression_level=0.
+light_pcapng_t *light_pcapng_open_write_with_options(const char* file_path, light_pcapng_file_info *file_info, const light_pcapng_compression_options_t * options);
 
 light_pcapng_t *light_pcapng_open_append(const char* file_path);
 

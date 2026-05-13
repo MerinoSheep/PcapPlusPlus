@@ -42,6 +42,22 @@ _compression_t * light_get_compression_context(int compression_level)
 		return NULL;
 }
 
+_compression_t * light_get_compression_context_with_options(const light_pcapng_compression_options_t * options)
+{
+	if (options == NULL || options->compression_level == 0)
+		return NULL;
+
+	// Prefer the extended entry-point if the active backend provides one
+	// (the zstd backend does, for ZSTD_c_nbWorkers). Fall back to the
+	// legacy single-int entry-point so backends that don't care about
+	// extended options still work without changes.
+	if (get_compression_context_with_options_ptr != NULL)
+		return get_compression_context_with_options_ptr(options);
+	if (get_compression_context_ptr != NULL)
+		return get_compression_context_ptr(options->compression_level);
+	return NULL;
+}
+
 void light_free_compression_context(_compression_t* context)
 {
 	if (!context)

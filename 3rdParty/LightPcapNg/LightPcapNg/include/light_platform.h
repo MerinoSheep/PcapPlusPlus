@@ -51,6 +51,8 @@ typedef long light_file_pos_t;
 
 light_file light_open(const char *file_name, const __read_mode_t mode);
 light_file light_open_compression(const char *file_name, const __read_mode_t mode, int compression_level);
+struct light_pcapng_compression_options_t;
+light_file light_open_compression_with_options(const char *file_name, const __read_mode_t mode, const struct light_pcapng_compression_options_t * options);
 size_t light_read(light_file fd, void *buf, size_t count);
 size_t light_write(light_file fd, const void *buf, size_t count);
 size_t light_size(light_file fd);

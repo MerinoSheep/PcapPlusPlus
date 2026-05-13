@@ -24,6 +24,7 @@
 #include "light_pcapng_ext.h"
 #include "light_pcapng.h"
 #include "light_platform.h"
+#include "light_compression.h"
 #include "light_debug.h"
 #include "light_util.h"
 #include "light_internal.h"
@@ -223,16 +224,12 @@ light_pcapng_t *light_pcapng_open_read(const char* file_path, light_boolean read
 	return pcapng;
 }
 
-light_pcapng_t *light_pcapng_open_write(const char* file_path, light_pcapng_file_info *file_info, int compression_level)
+// Shared body for the two open-write entry-points. Assumes pcapng->file is
+// already a valid (compressed or uncompressed) light_file. Writes the section
+// header + interface blocks + options. Returns pcapng on success or NULL if
+// pcapng->file is NULL.
+static light_pcapng_t * write_section_header_and_interfaces(light_pcapng_t *pcapng, light_pcapng_file_info *file_info)
 {
-	DCHECK_NULLP(file_info, return NULL);
-	DCHECK_NULLP(file_path, return NULL);
-
-	light_pcapng_t *pcapng = calloc(1, sizeof(struct _light_pcapng_t));
-
-	pcapng->file = light_open_compression(file_path, LIGHT_OWRITE, compression_level);
-	pcapng->file_info = file_info;
-
 	DCHECK_ASSERT_EXP(pcapng->file != NULL, "could not open output file", return NULL);
 
 	pcapng->pcapng = NULL;
@@ -288,6 +285,32 @@ light_pcapng_t *light_pcapng_open_write(const char* file_path, light_pcapng_file
 	light_pcapng_release(blocks_to_write);
 
 	return pcapng;
+}
+
+light_pcapng_t *light_pcapng_open_write(const char* file_path, light_pcapng_file_info *file_info, int compression_level)
+{
+	DCHECK_NULLP(file_info, return NULL);
+	DCHECK_NULLP(file_path, return NULL);
+
+	light_pcapng_t *pcapng = calloc(1, sizeof(struct _light_pcapng_t));
+
+	pcapng->file = light_open_compression(file_path, LIGHT_OWRITE, compression_level);
+	pcapng->file_info = file_info;
+
+	return write_section_header_and_interfaces(pcapng, file_info);
+}
+
+light_pcapng_t *light_pcapng_open_write_with_options(const char* file_path, light_pcapng_file_info *file_info, const light_pcapng_compression_options_t * options)
+{
+	DCHECK_NULLP(file_info, return NULL);
+	DCHECK_NULLP(file_path, return NULL);
+
+	light_pcapng_t *pcapng = calloc(1, sizeof(struct _light_pcapng_t));
+
+	pcapng->file = light_open_compression_with_options(file_path, LIGHT_OWRITE, options);
+	pcapng->file_info = file_info;
+
+	return write_section_header_and_interfaces(pcapng, file_info);
 }
 
 light_pcapng_t *light_pcapng_open_append(const char* file_path)

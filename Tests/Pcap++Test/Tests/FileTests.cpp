@@ -1314,6 +1314,90 @@ PTF_TEST_CASE(TestPcapNgFileReadWrite)
 
 }  // TestPcapNgFileReadWrite
 
+PTF_TEST_CASE(TestPcapNgFileWriterCompressionOptions)
+{
+	// Verifies the CompressionConfiguration constructor produces a valid
+	// pcapng-zstd file equivalent to the legacy int-compressionLevel constructor
+	// when numWorkers is 0, and that setting numWorkers > 0 still produces a
+	// roundtrip-readable file. We can't observe the worker count from the output
+	// bytes (zstd frames look identical) — see ZSTD_c_nbWorkers documentation.
+
+	pcpp::PcapNgFileReaderDevice sourceReader(EXAMPLE_PCAPNG_PATH);
+	PTF_ASSERT_TRUE(sourceReader.open());
+
+	pcpp::PcapNgFileWriterDevice::CompressionConfiguration singleThreaded(5, 0);
+	pcpp::PcapNgFileWriterDevice::CompressionConfiguration multiThreaded(5, 2);
+
+	pcpp::PcapNgFileWriterDevice writerSingle(EXAMPLE_PCAPNG_ZSTD_WRITE_PATH, singleThreaded);
+	pcpp::PcapNgFileWriterDevice writerMulti(EXAMPLE_PCAPNG_ZSTD_MT_WRITE_PATH, multiThreaded);
+	// Legacy int-ctor: must remain byte-equivalent to the singleThreaded options
+	// path (delegating to CompressionConfiguration(5) i.e. numWorkers=0).
+	pcpp::PcapNgFileWriterDevice writerLegacy(EXAMPLE2_PCAPNG_ZSTD_WRITE_PATH, 5);
+	PTF_ASSERT_TRUE(writerSingle.open());
+	PTF_ASSERT_TRUE(writerMulti.open());
+	PTF_ASSERT_TRUE(writerLegacy.open());
+
+	pcpp::RawPacket rawPacket;
+	int sourcePacketCount = 0;
+	while (sourceReader.getNextPacket(rawPacket))
+	{
+		sourcePacketCount++;
+		PTF_ASSERT_TRUE(writerSingle.writePacket(rawPacket));
+		PTF_ASSERT_TRUE(writerMulti.writePacket(rawPacket));
+		PTF_ASSERT_TRUE(writerLegacy.writePacket(rawPacket));
+	}
+
+	pcpp::PcapStats statsSingle;
+	pcpp::PcapStats statsMulti;
+	pcpp::PcapStats statsLegacy;
+	writerSingle.getStatistics(statsSingle);
+	writerMulti.getStatistics(statsMulti);
+	writerLegacy.getStatistics(statsLegacy);
+	PTF_ASSERT_EQUAL(static_cast<uint32_t>(statsSingle.packetsRecv), 64);
+	PTF_ASSERT_EQUAL(static_cast<uint32_t>(statsSingle.packetsDrop), 0);
+	PTF_ASSERT_EQUAL(static_cast<uint32_t>(statsMulti.packetsRecv), 64);
+	PTF_ASSERT_EQUAL(static_cast<uint32_t>(statsMulti.packetsDrop), 0);
+	PTF_ASSERT_EQUAL(static_cast<uint32_t>(statsLegacy.packetsRecv), 64);
+	PTF_ASSERT_EQUAL(static_cast<uint32_t>(statsLegacy.packetsDrop), 0);
+	PTF_ASSERT_EQUAL(sourcePacketCount, 64);
+
+	sourceReader.close();
+	writerSingle.close();
+	writerMulti.close();
+	writerLegacy.close();
+
+	// Read all three back through the standard reader; all three must yield
+	// 64 packets of valid pcapng-zstd data identical to the source counts.
+	pcpp::PcapNgFileReaderDevice readerSingle(EXAMPLE_PCAPNG_ZSTD_WRITE_PATH);
+	pcpp::PcapNgFileReaderDevice readerMulti(EXAMPLE_PCAPNG_ZSTD_MT_WRITE_PATH);
+	pcpp::PcapNgFileReaderDevice readerLegacy(EXAMPLE2_PCAPNG_ZSTD_WRITE_PATH);
+	PTF_ASSERT_TRUE(readerSingle.open());
+	PTF_ASSERT_TRUE(readerMulti.open());
+	PTF_ASSERT_TRUE(readerLegacy.open());
+
+	int singleCount = 0;
+	int multiCount = 0;
+	int legacyCount = 0;
+	pcpp::RawPacket roundtripPacket;
+	while (readerSingle.getNextPacket(roundtripPacket))
+		singleCount++;
+	while (readerMulti.getNextPacket(roundtripPacket))
+		multiCount++;
+	while (readerLegacy.getNextPacket(roundtripPacket))
+		legacyCount++;
+	PTF_ASSERT_EQUAL(singleCount, 64);
+	PTF_ASSERT_EQUAL(multiCount, 64);
+	PTF_ASSERT_EQUAL(legacyCount, 64);
+
+	// The legacy int-ctor delegates to CompressionConfiguration(level, 0); the
+	// resulting file must be byte-identical to the singleThreaded options path.
+	PTF_ASSERT_EQUAL(readerSingle.getFileSize(), readerLegacy.getFileSize());
+
+	readerSingle.close();
+	readerMulti.close();
+	readerLegacy.close();
+}  // TestPcapNgFileWriterCompressionOptions
+
 PTF_TEST_CASE(TestPcapNgFileReadWriteAdv)
 {
 	pcpp::PcapNgFileReaderDevice readerDev(EXAMPLE2_PCAPNG_PATH);

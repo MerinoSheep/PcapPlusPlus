@@ -64,8 +64,10 @@ typedef struct zstd_compression_t _compression_t;
 typedef struct zstd_decompression_t _decompression_t;
 
 struct light_file_t;
+struct light_pcapng_compression_options_t;
 
 _compression_t * get_zstd_compression_context(int compression_level);
+_compression_t * get_zstd_compression_context_with_options(const struct light_pcapng_compression_options_t * options);
 void free_zstd_compression_context(_compression_t* context);
 
 _decompression_t * get_zstd_decompression_context();

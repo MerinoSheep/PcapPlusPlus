@@ -5,6 +5,7 @@
 
 #include "PcapFileDevice.h"
 #include "light_pcapng_ext.h"
+#include "light_compression.h"
 #include "Logger.h"
 #include "EndianPortable.h"
 
@@ -999,11 +1000,13 @@ namespace pcpp
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	PcapNgFileWriterDevice::PcapNgFileWriterDevice(const std::string& fileName, int compressionLevel)
-	    : IFileWriterDevice(fileName)
-	{
-		m_LightPcapNg = nullptr;
-		m_CompressionLevel = compressionLevel;
-	}
+	    : PcapNgFileWriterDevice(fileName, CompressionConfiguration(compressionLevel))
+	{}
+
+	PcapNgFileWriterDevice::PcapNgFileWriterDevice(const std::string& fileName,
+	                                               const CompressionConfiguration& compressionConfiguration)
+	    : IFileWriterDevice(fileName), m_LightPcapNg(nullptr), m_CompressionConfiguration(compressionConfiguration)
+	{}
 
 	bool PcapNgFileWriterDevice::writePacket(RawPacket const& packet, const std::string& comment)
 	{
@@ -1104,11 +1107,15 @@ namespace pcpp
 			                              metadata->captureApplication.c_str(), metadata->comment.c_str());
 		}
 
-		m_LightPcapNg = toLightPcapNgHandle(light_pcapng_open_write(m_FileName.c_str(), info, m_CompressionLevel));
+		light_pcapng_compression_options_t lightOptions;
+		lightOptions.compression_level = m_CompressionConfiguration.compressionLevel;
+		lightOptions.num_workers = m_CompressionConfiguration.numWorkers;
+		m_LightPcapNg =
+		    toLightPcapNgHandle(light_pcapng_open_write_with_options(m_FileName.c_str(), info, &lightOptions));
 		if (m_LightPcapNg == nullptr)
 		{
 			PCPP_LOG_ERROR("Error opening file writer device for file '"
-			               << m_FileName << "': light_pcapng_open_write returned nullptr");
+			               << m_FileName << "': light_pcapng_open_write_with_options returned nullptr");
 
 			light_free_file_info(info);
 

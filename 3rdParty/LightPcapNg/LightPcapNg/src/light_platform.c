@@ -25,6 +25,7 @@
 #include "light_internal.h"
 #include "light_compression.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -103,14 +104,22 @@ light_file light_open(const char *file_name, const __read_mode_t mode)
 
 light_file light_open_compression(const char *file_name, const __read_mode_t mode, int compression_level)
 {
+	light_pcapng_compression_options_t options = { compression_level, 0 };
+	return light_open_compression_with_options(file_name, mode, &options);
+}
+
+light_file light_open_compression_with_options(const char *file_name, const __read_mode_t mode, const light_pcapng_compression_options_t * options)
+{
 	light_file fd = calloc(1, sizeof(light_file_t));
 	fd->file = INVALID_FILE;
 
-	assert(0 <= compression_level && 10 >= compression_level);
-	compression_level = max(0, compression_level);
-	compression_level = min(compression_level, 10);
+	light_pcapng_compression_options_t clamped = (options != NULL) ? *options : (light_pcapng_compression_options_t){ 0, 0 };
+	assert(0 <= clamped.compression_level && 10 >= clamped.compression_level);
+	clamped.compression_level = max(0, min(clamped.compression_level, 10));
+	if (clamped.num_workers < 0)
+		clamped.num_workers = 0;
 
-	fd->compression_context = light_get_compression_context(compression_level);
+	fd->compression_context = light_get_compression_context_with_options(&clamped);
 
 	switch (mode)
 	{

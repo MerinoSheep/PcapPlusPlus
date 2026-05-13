@@ -31,8 +31,10 @@ extern "C" {
 #endif
 
 struct light_file_t;
+struct light_pcapng_compression_options_t;
 
 extern _compression_t * (*get_compression_context_ptr)(int);
+extern _compression_t * (*get_compression_context_with_options_ptr)(const struct light_pcapng_compression_options_t *);
 extern void(*free_compression_context_ptr)(_compression_t*);
 extern _decompression_t * (*get_decompression_context_ptr)();
 extern void(*free_decompression_context_ptr)(_decompression_t*);

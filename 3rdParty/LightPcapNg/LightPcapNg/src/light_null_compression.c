@@ -30,6 +30,7 @@
 #if defined(USE_NULL_COMPRESSION)
 
 _compression_t * (*get_compression_context_ptr)(int) = NULL;
+_compression_t * (*get_compression_context_with_options_ptr)(const struct light_pcapng_compression_options_t *) = NULL;
 void(*free_compression_context_ptr)(_compression_t*) = NULL;
 _decompression_t * (*get_decompression_context_ptr)() = NULL;
 void(*free_decompression_context_ptr)(_decompression_t*) = NULL;

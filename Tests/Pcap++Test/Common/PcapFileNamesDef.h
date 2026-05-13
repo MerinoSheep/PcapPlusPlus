@@ -20,6 +20,7 @@
 #define EXAMPLE_PCAPNG_WRITE_PATH "PcapExamples/many_interfaces_copy.pcapng"
 #define EXAMPLE2_PCAPNG_WRITE_PATH "PcapExamples/pcapng-example-write.pcapng"
 #define EXAMPLE_PCAPNG_ZSTD_WRITE_PATH "PcapExamples/many_interfaces_copy.pcapng.zstd"
+#define EXAMPLE_PCAPNG_ZSTD_MT_WRITE_PATH "PcapExamples/many_interfaces_copy_mt.pcapng.zstd"
 #define EXAMPLE2_PCAPNG_ZSTD_WRITE_PATH "PcapExamples/pcapng-example-write.pcapng.zstd"
 #define EXAMPLE2_PCAPNG_ZST_WRITE_PATH "PcapExamples/pcapng-example-write.pcapng.zst"
 #define EXAMPLE_PCAPNG_INTERFACES_PATH "PcapExamples/too_many_interfaces.pcapng"

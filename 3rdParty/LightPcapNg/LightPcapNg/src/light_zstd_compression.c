@@ -24,6 +24,7 @@
 #ifdef USE_Z_STD
 
 #include "light_zstd_compression.h"
+#include "light_compression.h"
 #include "light_compression_functions.h"
 #include "light_file.h"
 #include <assert.h>
@@ -32,6 +33,7 @@
 #include <string.h>
 
 _compression_t * (*get_compression_context_ptr)(int) = &get_zstd_compression_context;
+_compression_t * (*get_compression_context_with_options_ptr)(const struct light_pcapng_compression_options_t *) = &get_zstd_compression_context_with_options;
 void(*free_compression_context_ptr)(_compression_t*) = &free_zstd_compression_context;
 _decompression_t * (*get_decompression_context_ptr)() = &get_zstd_decompression_context;
 void(*free_decompression_context_ptr)(_decompression_t*) = &free_zstd_decompression_context;
@@ -59,6 +61,23 @@ _compression_t * get_zstd_compression_context(int compression_level)
 	context->buffer_out = malloc(context->buffer_out_max_size);
 	context->compression_level = compression_level * 2; //Input is scale 0-10 but zstd goes 0 - 20!
 	assert(!ZSTD_isError(ZSTD_CCtx_setParameter(context->cctx, ZSTD_c_compressionLevel, compression_level)));
+
+	return context;
+}
+
+_compression_t * get_zstd_compression_context_with_options(const struct light_pcapng_compression_options_t * options)
+{
+	int compression_level = (options != NULL) ? options->compression_level : 0;
+	int num_workers = (options != NULL) ? options->num_workers : 0;
+
+	struct zstd_compression_t *context = (struct zstd_compression_t *)get_zstd_compression_context(compression_level);
+
+	// Tolerate setParameter failure (e.g. zstd built without multithreading)
+	// — the writer still works, just single-threaded.
+	if (context != NULL && num_workers > 0)
+	{
+		(void)ZSTD_CCtx_setParameter(context->cctx, ZSTD_c_nbWorkers, num_workers);
+	}
 
 	return context;
 }

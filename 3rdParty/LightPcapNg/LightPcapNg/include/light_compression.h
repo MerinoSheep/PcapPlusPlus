@@ -43,11 +43,25 @@ extern "C" {
 
 struct light_file_t;
 
+/// Compression options. Pass to light_pcapng_open_write_with_options when the
+/// legacy single int compression level is not enough. num_workers > 0 enables
+/// multi-threaded zstd compression (ZSTD_c_nbWorkers); other backends ignore it.
+typedef struct light_pcapng_compression_options_t
+{
+	int compression_level;
+	int num_workers;
+} light_pcapng_compression_options_t;
+
 //Any compression types to be added need to plug their appropriate code into these functions
 
 //Init anything needed to keep state of your compression or configure your compression here
 void light_free_compression_context(_compression_t* context);
 _compression_t * light_get_compression_context(int compression_level);
+
+/// Returns a compression context configured from the given options. Passing
+/// NULL or options->compression_level == 0 returns NULL. The caller owns the
+/// returned context and must release it via light_free_compression_context().
+_compression_t * light_get_compression_context_with_options(const light_pcapng_compression_options_t * options);
 
 //Init anything needed to keep state of your decompression or configure your decompression here
 void light_free_decompression_context(_decompression_t* context);

@@ -404,9 +404,30 @@ namespace pcpp
 	/// capabilities are part of the pcap-ng standard but aren't supported in most tools and libraries
 	class PcapNgFileWriterDevice : public IFileWriterDevice
 	{
+	public:
+		/// @struct CompressionConfiguration
+		/// Compression tuning for the writer. Use the constructor that takes this
+		/// struct when the legacy single-int compressionLevel is not enough — for
+		/// example, to enable multi-threaded zstd compression.
+		struct CompressionConfiguration
+		{
+			/// 0 disables compression; 1-10 selects the zstd level (same scale as
+			/// the legacy int-compressionLevel constructor argument).
+			int compressionLevel;
+			/// zstd backend only — number of internal worker threads
+			/// (ZSTD_c_nbWorkers). 0 keeps the legacy single-threaded behavior.
+			/// Has no effect on zstd builds without multithreading support, or on
+			/// the null backend.
+			int numWorkers;
+
+			explicit CompressionConfiguration(int compressionLevel = 0, int numWorkers = 0)
+			    : compressionLevel(compressionLevel), numWorkers(numWorkers)
+			{}
+		};
+
 	private:
 		internal::LightPcapNgHandle* m_LightPcapNg;
-		int m_CompressionLevel;
+		CompressionConfiguration m_CompressionConfiguration;
 
 	public:
 		/// A constructor for this class that gets the pcap-ng full path file name to open for writing or create. Notice
@@ -416,6 +437,12 @@ namespace pcpp
 		/// @param[in] compressionLevel The compression level to use when writing the file, use 0 to disable compression
 		/// or 10 for max compression. Default is 0
 		PcapNgFileWriterDevice(const std::string& fileName, int compressionLevel = 0);
+
+		/// A constructor that takes a CompressionConfiguration so callers can tune backend-specific options like the
+		/// number of zstd worker threads. The file is not opened by the constructor; call open() to do so.
+		/// @param[in] fileName The full path of the file
+		/// @param[in] compressionConfiguration Compression configuration. See CompressionConfiguration for fields.
+		PcapNgFileWriterDevice(const std::string& fileName, const CompressionConfiguration& compressionConfiguration);
 
 		/// A destructor for this class
 		~PcapNgFileWriterDevice() override
