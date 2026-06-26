@@ -38,6 +38,13 @@ struct _light_pcapng_t
 	light_pcapng pcapng;
 	light_pcapng_file_info *file_info;
 	light_file file;
+	// PCPP patch
+	// Reusable scratch buffer for building enhanced packet blocks in light_write_packet.
+	// Keeping it on the handle avoids a per-packet calloc/free; it grows on demand and is
+	// released in light_pcapng_close.
+	uint8_t *write_block_scratch;
+	size_t write_block_scratch_size;
+	// PCPP patch end
 };
 
 static light_pcapng_file_info *__create_file_info(light_pcapng pcapng_head)
@@ -519,8 +526,23 @@ void light_write_packet(light_pcapng_t *pcapng, const light_packet_header *packe
 
 	size_t option_size = sizeof(struct _light_enhanced_packet_block) + packet_header->captured_length;
 	PADD32(option_size, &option_size);
-	uint8_t *epb_memory = calloc(1, option_size);
-	//memset(epb_memory, 0, option_size); should be redundant with calloc
+
+	// Reuse a scratch buffer kept on the handle instead of calloc/free-ing one per packet.
+	// Grow it on demand; it is freed in light_pcapng_close.
+	if (pcapng->write_block_scratch_size < option_size)
+	{
+		uint8_t *grown = realloc(pcapng->write_block_scratch, option_size);
+		DCHECK_NULLP(grown, return);
+		pcapng->write_block_scratch = grown;
+		pcapng->write_block_scratch_size = option_size;
+	}
+	uint8_t *epb_memory = pcapng->write_block_scratch;
+	// The fixed EPB fields below and the packet_data memcpy fully overwrite the buffer except
+	// for the PADD32 padding tail, which light_alloc_block copies verbatim, so zero only that tail.
+	size_t epb_used = sizeof(struct _light_enhanced_packet_block) + packet_header->captured_length;
+	if (option_size > epb_used)
+		memset(epb_memory + epb_used, 0, option_size - epb_used);
+
 	struct _light_enhanced_packet_block *epb = (struct _light_enhanced_packet_block *)epb_memory;
 	epb->interface_id = iface_id;
 
@@ -541,7 +563,7 @@ void light_write_packet(light_pcapng_t *pcapng, const light_packet_header *packe
 	memcpy(epb->packet_data, packet_data, packet_header->captured_length);
 
 	light_pcapng packet_block_pcapng = light_alloc_block(LIGHT_ENHANCED_PACKET_BLOCK, (const uint32_t*)epb_memory, option_size+3*sizeof(uint32_t));
-	free(epb_memory);
+	// PCPP patch: epb_memory is the handle-owned scratch buffer, freed in light_pcapng_close (not here)
 
 	if (packet_header->comment_length > 0)
 	{
@@ -572,6 +594,11 @@ void light_pcapng_close(light_pcapng_t *pcapng)
 	}
 	if (pcapng->file_info != NULL)
 		light_free_file_info(pcapng->file_info);
+	// PCPP patch
+	free(pcapng->write_block_scratch);
+	pcapng->write_block_scratch = NULL;
+	pcapng->write_block_scratch_size = 0;
+	// PCPP patch end
 	free(pcapng);
 }
 
